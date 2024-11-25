@@ -1,4 +1,5 @@
 import os
+import asyncio
 from datetime import datetime, timedelta
 
 import requests
@@ -24,6 +25,7 @@ def get_leads():
     Returns a list of leads with their status names and responsible user names.
     Handles request timeouts and other request-related exceptions.
     """
+
     url = f"https://{AMOCRM_DOMAIN}/api/v4/leads"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
 
@@ -75,12 +77,12 @@ def get_leads():
 
 def get_status_names():
     """
-    Retrieve the names of all statuses in the AmoCRM pipelines.
+    Retrieve the names of all statuses in the AMOCRM pipelines.
 
-    Makes a request to the AmoCRM API to fetch the pipelines and their statuses.
+    Makes a request to the AMOCRM API to fetch the pipelines and their statuses.
     Returns a dictionary where keys are status IDs and values are status names.
-
     """
+
     url = f"https://{AMOCRM_DOMAIN}/api/v4/leads/pipelines"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
 
@@ -89,11 +91,19 @@ def get_status_names():
         response.raise_for_status()
         data = response.json()
 
+        if "_embedded" not in data or "pipelines" not in data["_embedded"]:
+            print("Ответ API не содержит данных о конвейерах.")
+            return {}
+
         statuses = {}
 
         for pipeline in data["_embedded"]["pipelines"]:
-            for status_id, status_data in pipeline["statuses"].items():
-                statuses[status_id] = status_data["name"]
+            if "_embedded" in pipeline and "statuses" in pipeline["_embedded"]:
+                for status in pipeline["_embedded"]["statuses"]:
+                    statuses[status["id"]] = status["name"]
+            else:
+                print(f"В конвейере {pipeline.get('name', 'Без имени')} нет статусов.")
+                # print(json.dumps(data, indent=4, ensure_ascii=False))
 
         return statuses
 
@@ -160,29 +170,24 @@ def group_leads_by_manager(leads):
     return grouped
 
 
-def send_message_to_telegram(message):
-    """
-    Sends a message to a specified Telegram chat.
+async def send_message_to_telegram_async(message):
 
-    Uses the Telegram Bot API to send a text message to the chat identified by CHAT_ID.
-    """
     bot = Bot(token=TELEGRAM_TOKEN)
-    bot.send_message(chat_id=CHAT_ID, text=message)
+    await bot.send_message(chat_id=CHAT_ID, text=message)
 
 
-if __name__ == "__main__":
-
+async def main():
     leads = get_leads()
     leads_by_manager = group_leads_by_manager(leads)
-
-    # MESSAGE
 
     message = "Выручка за вчерашний день:\n"
 
     for manager, manager_leads in leads_by_manager.items():
         total_revenue = sum(lead.get("price", 0) for lead in manager_leads)
-        message += f"Менеджер {manager}: {total_revenue} руб.\n"
+        message += f"Менеджер: {manager}: {total_revenue} руб.\n"
 
-    # SEND TO TELEGRAM
+    await send_message_to_telegram_async(message)
 
-    send_message_to_telegram(message)
+
+if __name__ == "__main__":
+    asyncio.run(main())
