@@ -2,3 +2,5 @@
 venv/
 .vscode/
 .pylintrc
+tokens.json
+__pycache__/
