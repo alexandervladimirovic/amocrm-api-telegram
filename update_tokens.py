@@ -6,10 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-DOMAIN = os.getenv("DOMAIN")
+AROCRM_DOMAIN = os.getenv("AMOCRM_DOMAIN")
 
 
-url = f"https://{DOMAIN}.amocrm.ru/oauth2/access_token"
+url = f"https://{AROCRM_DOMAIN}/oauth2/access_token"
 
 data = {
     "client_id": os.getenv("CLIENT_ID"),
@@ -20,11 +20,12 @@ data = {
 }
 
 
-responce = requests.post(url, json=data)
+response = requests.post(url, json=data)
 
-if responce.status_code == 200:
-    tokens = responce.json()
+
+if response.status_code == 200:
+    tokens = response.json()
     print("New Access Token:", tokens["access_token"])
     print("New Refresh Token:", tokens["refresh_token"])
 else:
-    print("Error: ", responce.status_code, responce.json())
+    print("Error: ", response.status_code, response.json())
