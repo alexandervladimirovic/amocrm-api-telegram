@@ -40,15 +40,11 @@ def get_leads():
 def group_leads_by_manager(leads):
     """
     Group a list of leads by their responsible user (manager).
-
-    Takes a list of leads, and returns a dict where the keys are the IDs of the responsible users, and the values are the total revenue for all leads assigned to that user.
-
-    Args:
-        leads (list): A list of leads.
-
-    Returns:
-        dict: A dict where the keys are the IDs of the responsible users, and the values are the total revenue for all leads assigned to that user.
+    
+    Takes a list of leads, and returns a dict where the keys are the IDs of the responsible users, 
+    and the values are the total revenue for all leads assigned to that user.
     """
+
     leads_by_manager = {}
     for lead in leads:
         manager_id = lead["responsible_user_id"]
