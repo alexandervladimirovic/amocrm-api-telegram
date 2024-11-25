@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta
 
 import requests
+from telegram import Bot
 from dotenv import load_dotenv
 
 
@@ -9,6 +10,8 @@ load_dotenv()
 
 AROCRM_DOMAIN = os.getenv("AMOCRM_DOMAIN")
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 def get_leads():
 
@@ -54,4 +57,30 @@ def group_leads_by_manager(leads):
     return leads_by_manager
 
 
+def send_message_to_telegram(message):
 
+    """
+    Sends a message to a specified Telegram chat.
+
+    Uses the Telegram Bot API to send a text message to the chat identified by CHAT_ID.
+    """
+    bot = Bot(token=TELEGRAM_TOKEN)
+    bot.send_message(chat_id=CHAT_ID, text=message)
+
+
+if __name__ == "__main__":
+
+    leads = get_leads()
+    leads_by_manager = group_leads_by_manager(leads)
+
+    # MESSAGE
+
+    message = "Выручка за вчерашний день:\n"
+
+    for manager, revenue in leads_by_manager.items():
+        message += f"Менеджер {manager}: {revenue} руб.\n"
+
+    # SEND TO TELEGRAM
+
+    send_message_to_telegram(message)
+   
