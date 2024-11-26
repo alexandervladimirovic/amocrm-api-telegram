@@ -1,10 +1,19 @@
 import os
 import asyncio
+import logging
 from datetime import datetime, timedelta
 
 import requests
 from telegram import Bot
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("logs/script.log", encoding="utf-8"),
+              logging.StreamHandler()],
+)
+logger = logging.getLogger()
 
 
 load_dotenv(override=True)
@@ -25,7 +34,7 @@ def get_leads():
     Returns a list of leads with their status names and responsible user names.
     Handles request timeouts and other request-related exceptions.
     """
-
+    logger.info("Получение списка лидов за вччерашний день")
     url = f"https://{AMOCRM_DOMAIN}/api/v4/leads"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
 
@@ -33,11 +42,11 @@ def get_leads():
     user_names = get_user_names()
 
     if not status_names:
-        print("Невозможно получить имена статусов")
+        logger.info("Невозможно получить имена статусов")
         return []
 
     if not user_names:
-        print("Невозможно получить имена пользователей")
+        logger.info("Невозможно получить имена менеджеров")
         return []
 
     params = {
@@ -63,15 +72,15 @@ def get_leads():
             lead["responsible_user_name"] = user_names.get(
                 lead_responsible_user_id, "Неизвестный пользватель"
             )
-
+        logger.info("Успешно получено %d лидов.", len(leads))
         return leads
 
     except requests.Timeout:
-        print("Запрос превысил время ожидания")
+        logger.error("Запрос к API превысил время ожидания")
         return []
 
     except requests.exceptions.RequestException as e:
-        print(f"Произошла ошибка при выполнении запроса: {e}")
+        logger.error("Ошибка при запросе к API: %s", e)
         return []
 
 
@@ -82,7 +91,7 @@ def get_status_names():
     Makes a request to the AMOCRM API to fetch the pipelines and their statuses.
     Returns a dictionary where keys are status IDs and values are status names.
     """
-
+    logger.info("Получение имен статусов.")
     url = f"https://{AMOCRM_DOMAIN}/api/v4/leads/pipelines"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
 
@@ -92,7 +101,7 @@ def get_status_names():
         data = response.json()
 
         if "_embedded" not in data or "pipelines" not in data["_embedded"]:
-            print("Ответ API не содержит данных о конвейерах.")
+            logger.info("Ответ API не содержит данных о конвейерах")
             return {}
 
         statuses = {}
@@ -102,17 +111,19 @@ def get_status_names():
                 for status in pipeline["_embedded"]["statuses"]:
                     statuses[status["id"]] = status["name"]
             else:
-                print(f"В конвейере {pipeline.get('name', 'Без имени')} нет статусов.")
+                logger.info(
+                    f"В конвейере {pipeline.get('name', 'Без имени')} нет статусов %s"
+                )
                 # print(json.dumps(data, indent=4, ensure_ascii=False))
-
+        logger.info("Успешно получены статусы")
         return statuses
 
     except requests.Timeout:
-        print("Запрос превысил время ожидания")
+        logger.error("Запрос на получение статусов превысил время ожидания")
         return {}
 
     except requests.exceptions.RequestException as e:
-        print(f"Произошла ошибка при выполнении запроса: {e}")
+        logger.error("Ошибка при запросе статусов: %s", e)
         return {}
 
 
@@ -125,6 +136,7 @@ def get_user_names():
 
     Handles request timeouts and other request-related exceptions.
     """
+    logger.info("Получение имен пользователей")
     url = f"https://{AMOCRM_DOMAIN}/api/v4/users"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
 
@@ -134,14 +146,15 @@ def get_user_names():
         data = response.json()
 
         users = {str(user["id"]): user["name"] for user in data["_embedded"]["users"]}
+        logger.info("Успешно получены пользователи")
         return users
 
     except requests.Timeout:
-        print("Запрос превысил время ожидания")
+        logger.error("Запрос на получение пользователей превысил время ожидания")
         return {}
 
     except requests.exceptions.RequestException as e:
-        print(f"Произошла ошибка при выполнении запроса: {e}")
+        logger.error("Произошла ошибка при выполнении запроса %s", e)
         return {}
 
 
@@ -155,7 +168,7 @@ def group_leads_by_manager(leads):
 
     Handles request timeouts and other request-related exceptions.
     """
-
+    logger.info("Группировка лидов по менеджерам")
     user_names = get_user_names()
     grouped = {}
 
@@ -166,17 +179,35 @@ def group_leads_by_manager(leads):
         if manager_name not in grouped:
             grouped[manager_name] = []
         grouped[manager_name].append(lead)
-
+    logger.info("Лиды успешно сгруппированы")
     return grouped
 
 
 async def send_message_to_telegram_async(message):
+    """
+    Send an asynchronous message to a Telegram chat.
 
+    This function sends a message to a predefined Telegram chat using the
+    Telegram Bot API. The message is sent asynchronously.
+    """
+    logger.info("Отправка сообщения в Telegram")
     bot = Bot(token=TELEGRAM_TOKEN)
-    await bot.send_message(chat_id=CHAT_ID, text=message)
+    try:
+        await bot.send_message(chat_id=CHAT_ID, text=message)
+        logger.info("Сообщение успешно отправлено в Telegram")
+    except Exception as e:
+        logger.error("Ошибка при отправке сообщения в Telegram: %s", e)
 
 
 async def main():
+    """
+    Main entry point of the script.
+
+    Retrieves all leads from the AmoCRM API, groups them by their responsible user (manager),
+    calculates the total revenue for each manager, and sends a message to a Telegram chat
+    with the results.
+    """
+    logger.info("Запуск скрипта")
     leads = get_leads()
     leads_by_manager = group_leads_by_manager(leads)
 

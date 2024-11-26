@@ -1,7 +1,17 @@
 import os
+import sys
+import logging
 
 import requests
 from dotenv import load_dotenv, set_key
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("logs/get_tokens.log", encoding="utf-8"),
+              logging.StreamHandler()],
+)
+logger = logging.getLogger()
 
 load_dotenv(override=True)
 
@@ -26,24 +36,26 @@ def get_tokens():
     }
 
     try:
+        logger.info("Отправка запроса на получение токенов")
         response = requests.post(url, json=data, timeout=10)
         response.raise_for_status()
 
         tokens = response.json()
-        print("Access Token:", tokens.get("access_token"))
-        print("Refresh Token:", tokens.get("refresh_token"))
+        logger.info("Токены успешно получены")
+        logger.debug("Access Token: %s", tokens.get("access_token"))
+        logger.debug("Refresh Token: %s", tokens.get("refresh_token"))
 
         return tokens
 
     except requests.exceptions.Timeout:
-        print("Ошибка: Запрос превысил время ожидания")
+        logger.error("Запрос превысил время ожидания")
 
     except requests.exceptions.RequestException as e:
-        print(f"Произошла ошибка при выполнении запроса: {e}")
+        logger.error("Произошла ошибка при выполнении запроса")
         if response := e.response:
-            print(
-                "Детали ошибки:",
-                response.json().get("detail", "Не удалось получить детали ошибки"),
+            logger.error(
+                "Детали ошибки: %s",
+                response.json().get("detail", "Детали ошибки отсутствуют"),
             )
 
     return None
@@ -60,7 +72,7 @@ def save_tokens(tokens):
     set_key(dotenv_path, "ACCESS_TOKEN", tokens["access_token"])
     set_key(dotenv_path, "REFRESH_TOKEN", tokens["refresh_token"])
 
-    print("Токены сохранены в .env")
+    logger.info("Токены сохранены в .env")
 
 
 if __name__ == "__main__":
@@ -74,9 +86,10 @@ if __name__ == "__main__":
     missing_vars = [var for var in required_env_vars if not os.getenv(var)]
 
     if missing_vars:
-        print(
-            f"Отсутствуют обязательные переменные окружения: {', '.join(missing_vars)}"
+        logger.error(
+            "Отсутствуют обязательные переменные окружения: %s", ", ".join(missing_vars)
         )
+        sys.exit(1)
 
     tokens = get_tokens()
 

@@ -2,5 +2,6 @@
 venv/
 .vscode/
 .pylintrc
-tokens.json
 __pycache__/
+.DS_Store
+logs/

@@ -1,8 +1,18 @@
+import sys
 import os
+import logging
 
 import requests
 from requests.exceptions import Timeout, RequestException
 from dotenv import load_dotenv, set_key
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("logs/update_tokens.log", encoding="utf-8"),
+              logging.StreamHandler()],
+)
+logger = logging.getLogger()
 
 load_dotenv(override=True)
 
@@ -23,8 +33,8 @@ required_vars = {
 missing_vars = [key for key, value in required_vars.items() if value is not value]
 
 if missing_vars:
-    print(f"Отсутствуют обязательные переменные окружения: {', '.join(missing_vars)}")
-    exit(1)
+    logger.error("Отсутствуют обязательные переменные окружения: %s", ", ".join(missing_vars))
+    sys.exit(1)
 
 url = f"https://{AMOCRM_DOMAIN}/oauth2/access_token"
 
@@ -37,28 +47,28 @@ data = {
 }
 
 try:
+    logger.info("Отправка запроса на обновление токенов")
     response = requests.post(url, data=data, timeout=10)
     response.raise_for_status()
 
     tokens = response.json()
-    
-    print("Токены успешно обновлены:")
-    print("Access Token: [скрыто]")
-    print("Refresh Token: [скрыто]")
+
+    logger.info("Токены успешно обновлены.")
+    logger.debug("Access Token: %s", tokens.get("access_token"))
+    logger.debug("Refresh Token: %s", tokens.get("refresh_token"))
 
     set_key(".env", "ACCESS_TOKEN", tokens["access_token"])
     set_key(".env", "REFRESH_TOKEN", tokens["refresh_token"])
-    print("Токены сохранены в .env")
+    logger.info("Токены сохранены в .env")
 
 except Timeout:
-    print("Запрос превысил время ожидания")
+    logger.error("Запрос превысил время ожидания.")
 except RequestException as e:
-    error_message = e.response.json().get("detail", "Произошла ошибка при выполнении запроса")
-    print(f"Произошла ошибка при выполнении запроса: {error_message}")
+    error_message = e.response.json().get(
+        "detail", "Произошла ошибка при выполнении запроса"
+    )
+    logger.error("Произошла ошибка при выполнении запроса: %s", error_message)
 except KeyError as e:
-    print(f"Ошибка при обработке ответа: отсутствует ключ {e}")
+    logger.error("Отсутствуют обязательные переменные окружения: %s", e)
 except Exception as e:
-    print(f"Произошла неизвестная ошибка: {e}")
-
-   
-
+    logger.exception("Произошла ошибка: %s", e)
