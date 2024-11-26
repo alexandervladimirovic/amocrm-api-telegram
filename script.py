@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 
 import requests
-from telegram import Bot
+import telegram
 from dotenv import load_dotenv
 
 logging.basicConfig(
@@ -196,10 +196,12 @@ async def send_message_to_telegram_async(message):
     Telegram Bot API. The message is sent asynchronously.
     """
     logger.info("Отправка сообщения в Telegram")
-    bot = Bot(token=TELEGRAM_TOKEN)
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
     try:
         await bot.send_message(chat_id=CHAT_ID, text=message)
         logger.info("Сообщение успешно отправлено в Telegram")
+    except telegram.error.TimedOut:
+        logger.error("Превышено время ожидания при отправке сообщения в Telegram")
     except Exception as e:
         logger.exception("Произошла ошибка при отправке сообщения в Telegram: %s", e)
 
