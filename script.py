@@ -10,8 +10,10 @@ from dotenv import load_dotenv
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/script.log", encoding="utf-8"),
-              logging.StreamHandler()],
+    handlers=[
+        logging.FileHandler("logs/console.log", encoding="utf-8"),
+        logging.StreamHandler(),
+    ],
 )
 logger = logging.getLogger()
 
@@ -39,11 +41,12 @@ def get_leads():
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
 
     status_names = get_status_names()
-    user_names = get_user_names()
 
     if not status_names:
         logger.info("Невозможно получить имена статусов")
         return []
+    
+    user_names = get_user_names()
 
     if not user_names:
         logger.info("Невозможно получить имена менеджеров")
@@ -101,7 +104,7 @@ def get_status_names():
         data = response.json()
 
         if "_embedded" not in data or "pipelines" not in data["_embedded"]:
-            logger.info("Ответ API не содержит данных о конвейерах")
+            logger.info("Ответ API не содержит данных о конвейрах")
             return {}
 
         statuses = {}
@@ -147,6 +150,8 @@ def get_user_names():
 
         users = {str(user["id"]): user["name"] for user in data["_embedded"]["users"]}
         logger.info("Успешно получены пользователи")
+        # print(json.dumps(data, indent=4, ensure_ascii=False))
+
         return users
 
     except requests.Timeout:
@@ -168,7 +173,7 @@ def group_leads_by_manager(leads):
 
     Handles request timeouts and other request-related exceptions.
     """
-    logger.info("Группировка лидов по менеджерам")
+    logger.info("Группа лидов по менеджерам")
     user_names = get_user_names()
     grouped = {}
 
@@ -196,7 +201,7 @@ async def send_message_to_telegram_async(message):
         await bot.send_message(chat_id=CHAT_ID, text=message)
         logger.info("Сообщение успешно отправлено в Telegram")
     except Exception as e:
-        logger.error("Ошибка при отправке сообщения в Telegram: %s", e)
+        logger.exception("Произошла ошибка при отправке сообщения в Telegram: %s", e)
 
 
 async def main():

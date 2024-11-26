@@ -9,7 +9,7 @@ from dotenv import load_dotenv, set_key
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/update_tokens.log", encoding="utf-8"),
+    handlers=[logging.FileHandler("logs/console.log", encoding="utf-8"),
               logging.StreamHandler()],
 )
 logger = logging.getLogger()
